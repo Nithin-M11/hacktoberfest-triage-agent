@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f7fb">
+  <meta name="description" content="A simple human-reviewed GitHub issue triage tool built by Team Advaya.">
+  <title>ADVAYA | GitHub Issue Triage</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f4f7fb;
+      --card: #ffffff;
+      --soft: #f8faff;
+      --ink: #2f3b4f;
+      --muted: #718096;
+      --line: #e3eaf3;
+      --peach: #e8a28a;
+      --peach-dark: #96553e;
+      --peach-soft: #fff0e9;
+      --blue-soft: #edf3ff;
+      --blue: #4167b0;
+      --green: #267b5b;
+      --green-soft: #eaf6ef;
+      --yellow: #946b16;
+      --yellow-soft: #fff7df;
+      --red: #a94c48;
+      --red-soft: #fff0ef;
+      --shadow: 0 5px 20px rgba(40, 58, 82, .045);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.6 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, input:focus-visible { outline: 3px solid rgba(65, 103, 176, .25); outline-offset: 2px; }
+    .top { background: rgba(255,255,255,.92); border-bottom: 1px solid var(--line); }
+    .top-inner, main { width: min(1120px, calc(100% - 36px)); margin: 0 auto; }
+    .top-inner { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .brand { display: flex; align-items: center; gap: 11px; }
+    .brand-icon { width: 39px; height: 39px; display: grid; place-items: center; border-radius: 12px; color: #68483e; background: #f8e4dc; font-size: 18px; font-weight: 800; }
+    .brand strong { display: block; font-size: 15px; letter-spacing: .4px; }
+    .brand small { display: block; margin-top: 1px; color: var(--muted); font-size: 10px; letter-spacing: 1.1px; }
+    .top-actions { display: flex; align-items: center; gap: 10px; }
+    .status { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #b8c1ce; }
+    .dot.online { background: #2c9a70; }
+    .dot.offline { background: #ca625c; }
+    .btn { border: 1px solid var(--line); border-radius: 9px; padding: 9px 13px; background: white; color: #56647a; font-size: 12px; font-weight: 650; }
+    .btn:hover { background: var(--soft); }
+    .btn-main { border-color: var(--peach); background: var(--peach); color: #50382f; }
+    .btn-main:hover { background: #efb19b; }
+    .btn:disabled { opacity: .6; cursor: wait; }
+    main { padding: 30px 0 46px; }
+    .intro { margin-bottom: 22px; }
+    .eyebrow { color: var(--peach-dark); font-size: 10px; font-weight: 750; letter-spacing: 1.2px; }
+    h1 { margin: 6px 0 5px; font-size: clamp(25px, 4vw, 32px); line-height: 1.2; letter-spacing: -.8px; }
+    .intro p { margin: 0; max-width: 620px; color: var(--muted); font-size: 13px; }
+    .notice { display: none; padding: 11px 13px; border: 1px solid var(--line); border-radius: 10px; margin: 0 0 18px; font-size: 12px; overflow-wrap: anywhere; }
+    .notice.show { display: block; }
+    .notice.info { background: var(--blue-soft); color: #35558f; border-color: #dbe5fb; }
+    .notice.success { background: var(--green-soft); color: var(--green); border-color: #d5ecde; }
+    .notice.warning { background: var(--yellow-soft); color: var(--yellow); border-color: #f2e6b8; }
+    .notice.error { background: var(--red-soft); color: var(--red); border-color: #f3d7d5; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(260px, .85fr); gap: 18px; align-items: start; }
+    .col { display: grid; gap: 18px; min-width: 0; }
+    .card { min-width: 0; background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; }
+    .card-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 18px 13px; border-bottom: 1px solid #edf1f6; }
+    .card-head h2 { margin: 0; font-size: 14px; letter-spacing: -.15px; }
+    .card-head p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+    .count { flex: 0 0 auto; padding: 4px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--soft); color: var(--muted); font-size: 10px; }
+    .card-body { padding: 16px 18px 18px; }
+    .triage-form { display: flex; gap: 9px; }
+    .triage-form input { width: 100%; min-width: 0; padding: 11px 12px; color: var(--ink); background: white; border: 1px solid #dbe3ee; border-radius: 9px; }
+    .triage-form input::placeholder { color: #9aa6b6; }
+    .helper { margin: 9px 0 0; color: var(--muted); font-size: 11px; }
+    .issue-list, .pending-list, .steps-list { display: grid; gap: 8px; }
+    .issue { width: 100%; display: flex; align-items: flex-start; gap: 10px; padding: 11px; text-align: left; color: var(--ink); background: white; border: 1px solid var(--line); border-radius: 10px; }
+    .issue:hover { background: #fffaf7; border-color: #e9c3b4; }
+    .issue-number { flex: 0 0 auto; padding: 2px 6px; border-radius: 6px; background: var(--blue-soft); color: var(--blue); font-size: 10px; font-weight: 700; }
+    .issue-title { font-size: 12px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
+    .issue-state { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; }
+    .empty { padding: 21px 13px; text-align: center; color: var(--muted); background: var(--soft); border: 1px dashed #dce5f0; border-radius: 10px; font-size: 11px; }
+    .empty strong { display: block; margin-bottom: 4px; color: #4a586d; font-size: 12px; }
+    .empty p { margin: 0; }
+    .result-content { padding: 18px; }
+    .result-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .result-kicker { color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .8px; }
+    .result-top h3 { margin: 4px 0 0; font-size: 19px; letter-spacing: -.35px; }
+    .pill { display: inline-block; padding: 4px 8px; border-radius: 6px; background: var(--blue-soft); color: var(--blue); font-size: 10px; font-weight: 650; }
+    .pill.neutral { background: #f2f4f7; color: #68758a; }
+    .pill.good { background: var(--green-soft); color: var(--green); }
+    .pill.review { background: var(--yellow-soft); color: var(--yellow); }
+    .pills { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+    .summary { margin: 10px 0 15px; color: #536177; font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }
+    .divider { height: 1px; margin: 15px 0; background: #edf1f6; border: 0; }
+    h3.section-title { margin: 0 0 8px; font-size: 12px; }
+    .steps { margin: 0; padding-left: 19px; color: #536177; font-size: 11px; }
+    .steps li { margin: 6px 0; padding-left: 2px; }
+    .confidence { display: flex; align-items: center; gap: 10px; margin-top: 15px; }
+    .track { height: 6px; flex: 1; border-radius: 8px; overflow: hidden; background: #edf1f6; }
+    .fill { height: 100%; background: linear-gradient(90deg, #efc2b0, #dc967a); border-radius: inherit; }
+    .confidence span { color: var(--muted); font-size: 10px; white-space: nowrap; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+    .pending-item { padding: 11px; border: 1px solid var(--line); border-radius: 10px; }
+    .pending-description { font-size: 11px; line-height: 1.55; overflow-wrap: anywhere; }
+    .pending-id { margin-top: 4px; color: #9aa4b1; font-size: 9px; }
+    .pending-actions { display: flex; justify-content: flex-end; gap: 7px; padding-top: 9px; margin-top: 9px; border-top: 1px solid #edf1f6; }
+    .approve { color: white; background: #39866a; border-color: #39866a; }
+    .approve:hover { background: #2f735a; }
+    .deny { color: #657185; }
+    .status-list { display: grid; gap: 0; }
+    .status-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 9px 0; border-bottom: 1px solid #edf1f6; }
+    .status-row:last-child { border: 0; padding-bottom: 0; }
+    .status-label { color: var(--muted); font-size: 11px; }
+    .status-value { max-width: 65%; text-align: right; color: #516078; font-size: 10px; overflow-wrap: anywhere; }
+    .log-item { padding: 11px; border: 1px solid var(--line); border-radius: 10px; }
+    .log-meta { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; margin-bottom: 6px; }
+    .log-step { color: var(--peach-dark); font-size: 10px; font-weight: 700; }
+    .log-tool { color: var(--blue); background: var(--blue-soft); border-radius: 5px; padding: 2px 6px; font-size: 10px; }
+    .log-thought { margin-bottom: 6px; color: #5c6a7f; font-size: 11px; }
+    .log-observation { color: #546279; background: var(--soft); padding: 8px; border-radius: 7px; font: 10px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+    footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-top: 22px; color: #8a96a7; font-size: 10px; }
+    @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } .top-inner, main { width: min(100% - 26px, 620px); } main { padding-top: 23px; } }
+    @media (max-width: 480px) { .top-inner { min-height: 65px; } .status { font-size: 10px; } .brand small { letter-spacing: .6px; } .triage-form { flex-direction: column; } .triage-form .btn-main { min-height: 42px; } .card-head, .card-body, .result-content { padding-left: 14px; padding-right: 14px; } .count { display: none; } }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="top-inner">
+      <div class="brand">
+        <div class="brand-icon" aria-hidden="true">A</div>
+        <div><strong>ADVAYA</strong><small>GITHUB ISSUE TRIAGE</small></div>
+      </div>
+      <div class="top-actions">
+        <div class="status" aria-live="polite"><span id="api-dot" class="dot"></span><span id="api-status">Connecting…</span></div>
+        <button type="button" class="btn" id="refresh-button">Refresh</button>
+      </div>
+    </div>
+  </header>
+  <main>
+    <section class="intro">
+      <div class="eyebrow">TEAM ADVAYA · HACKTOBERFEST</div>
+      <h1>GitHub issue triage</h1>
+      <p>Pick an issue, review the suggestions, and decide what should happen next. GitHub changes always need your approval.</p>
+    </section>
+    <div id="notice" class="notice" role="status" aria-live="polite"></div>
+    <div class="layout">
+      <div class="col">
+        <section class="card">
+          <div class="card-head"><div><h2>Look up an issue</h2><p>Enter an issue number or select one from the list.</p></div></div>
+          <div class="card-body">
+            <form id="triage-form" class="triage-form">
+              <input id="issue-number" type="number" min="1" step="1" placeholder="Issue number, e.g. 12" aria-label="GitHub issue number" required>
+              <button id="run-button" class="btn btn-main" type="submit">Run triage</button>
+            </form>
+            <p class="helper">The agent checks the issue and suggests labels and next steps for you to review.</p>
+          </div>
+        </section>
+        <section class="card" id="result-card">
+          <div class="card-head"><div><h2>Latest result</h2><p>Summary and recommended actions</p></div><span class="count" id="result-status">Not started</span></div>
+          <div id="result-body" class="result-content">
+            <div class="empty"><strong>No issue analysed yet</strong><p>Choose an issue and run triage to see the results here.</p></div>
+          </div>
+        </section>
+        <section class="card">
+          <div class="card-head"><div><h2>Activity</h2><p>What the agent checked</p></div><span class="count" id="steps-count">0 steps</span></div>
+          <div class="card-body"><div id="steps-list" class="steps-list"><div class="empty"><strong>No activity yet</strong><p>The agent's checks will appear here after a run.</p></div></div></div>
+        </section>
+      </div>
+      <aside class="col">
+        <section class="card">
+          <div class="card-head"><div><h2>Recent issues</h2><p>Choose one to fill the issue number.</p></div><span class="count" id="issues-count">Loading</span></div>
+          <div class="card-body"><div id="issue-list" class="issue-list"><div class="empty"><strong>Loading issues…</strong><p>Connecting to your configured repository.</p></div></div></div>
+        </section>
+        <section class="card">
+          <div class="card-head"><div><h2>Approval queue</h2><p>Changes waiting for your decision.</p></div><span class="count" id="pending-count">0 pending</span></div>
+          <div class="card-body"><div id="pending-list" class="pending-list"><div class="empty"><strong>Nothing waiting for approval</strong><p>Label proposals will appear here.</p></div></div><p class="helper">Approve only changes you have reviewed. Denied proposals are discarded.</p></div>
+        </section>
+        <section class="card">
+          <div class="card-head"><div><h2>Connection details</h2><p>Current app configuration</p></div></div>
+          <div class="card-body"><div class="status-list">
+            <div class="status-row"><span class="status-label">Flask API</span><span class="status-value" id="runtime-api">Checking</span></div>
+            <div class="status-row"><span class="status-label">Model</span><span class="status-value" id="runtime-model">—</span></div>
+            <div class="status-row"><span class="status-label">Endpoint</span><span class="status-value" id="runtime-backend">—</span></div>
+            <div class="status-row"><span class="status-label">Repository</span><span class="status-value" id="runtime-repo">Not configured</span></div>
+          </div></div>
+        </section>
+      </aside>
+    </div>
+    <footer><span>ADVAYA · HACKTOBERFEST TRIAGE AGENT</span><span>Human approval required for GitHub writes</span></footer>
+  </main>
+  <script>
+    'use strict';
+    const $ = function (id) { return document.getElementById(id); };
+    const state = { repo: '', issues: [], pending: [], lastResult: null };
+    function esc(value) {
+      return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+      });
+    }
+    function showNotice(message, type) {
+      const el = $('notice');
+      el.className = 'notice show ' + (type || 'info');
+      el.textContent = message;
+    }
+    function clearNotice() { $('notice').className = 'notice'; $('notice').textContent = ''; }
+    async function api(path, options) {
+      const opts = options || {};
+      const headers = Object.assign({}, opts.headers || {});
+      if (opts.body) headers['Content-Type'] = 'application/json';
+      let response;
+      try {
+        response = await fetch(path, Object.assign({}, opts, { headers: headers }));
+      } catch (_error) {
+        throw new Error('Cannot reach the Flask API. Run python app.py from the project folder and refresh.');
+      }
+      let data = {};
+      try { data = await response.json(); } catch (_error) { data = {}; }
+      if (!response.ok || data.error) throw new Error(data.error || ('Request failed (' + response.status + ').'));
+      return data;
+    }
+    function setApiStatus(online, label) {
+      $('api-dot').className = 'dot ' + (online ? 'online' : 'offline');
+      $('api-status').textContent = label;
+      $('runtime-api').textContent = online ? 'Online' : 'Offline';
+    }
+    async function refreshHealth() {
+      try {
+        const data = await api('/api/health');
+        state.repo = data.repo || '';
+        setApiStatus(true, 'API connected');
+        $('runtime-model').textContent = data.model || 'Not reported';
+        $('runtime-backend').textContent = data.backend || 'Not reported';
+        $('runtime-repo').textContent = state.repo || 'Not configured';
+        return true;
+      } catch (error) {
+        setApiStatus(false, 'API offline');
+        $('runtime-model').textContent = 'Unavailable';
+        $('runtime-backend').textContent = 'Unavailable';
+        $('runtime-repo').textContent = 'Unavailable';
+        return false;
+      }
+    }
+    function renderEmpty(target, title, message) {
+      $(target).innerHTML = '<div class="empty"><strong>' + esc(title) + '</strong><p>' + esc(message) + '</p></div>';
+    }
+    async function refreshIssues() {
+      try {
+        const data = await api('/api/issues');
+        state.issues = Array.isArray(data.issues) ? data.issues.filter(function (issue) { return issue && Number(issue.number) > 0; }) : [];
+        $('issues-count').textContent = state.issues.length + ' loaded';
+        if (!state.issues.length) {
+          renderEmpty('issue-list', 'No issues returned', state.repo ? 'No issues were found. You can still enter an issue number above.' : 'Set DEMO_REPO in your terminal to a repository you can access.');
+          return;
+        }
+        $('issue-list').innerHTML = state.issues.slice(0, 8).map(function (issue) {
+          return '<button class="issue" type="button" data-issue="' + Number(issue.number) + '">' +
+            '<span class="issue-number">#' + Number(issue.number) + '</span><span><span class="issue-title">' + esc(issue.title || 'Untitled issue') + '</span>' +
+            '<span class="issue-state">' + esc(issue.state || 'unknown') + '</span></span></button>';
+        }).join('');
+      } catch (error) {
+        $('issues-count').textContent = 'Unavailable';
+        renderEmpty('issue-list', 'Could not load issues', error.message);
+      }
+    }
+    async function refreshPending() {
+      try {
+        const data = await api('/api/pending');
+        state.pending = Array.isArray(data.pending) ? data.pending : [];
+        $('pending-count').textContent = state.pending.length + ' pending';
+        if (!state.pending.length) {
+          renderEmpty('pending-list', 'Nothing waiting for approval', 'Label proposals will appear here after you ask the agent to propose them.');
+          return;
+        }
+        $('pending-list').innerHTML = state.pending.map(function (item) {
+          return '<article class="pending-item" data-pending-row="' + esc(item.id) + '">' +
+            '<div class="pending-description">' + esc(item.description || 'Proposed GitHub change') + '</div>' +
+            '<div class="pending-id">REQUEST ' + esc(item.id) + '</div>' +
+            '<div class="pending-actions"><button type="button" class="btn deny" data-decision="deny" data-action-id="' + esc(item.id) + '">Deny</button>' +
+            '<button type="button" class="btn approve" data-decision="approve" data-action-id="' + esc(item.id) + '">Approve</button></div></article>';
+        }).join('');
+      } catch (error) {
+        $('pending-count').textContent = 'Unavailable';
+        renderEmpty('pending-list', 'Queue unavailable', error.message);
+      }
+    }
+    async function runTriage(event) {
+      if (event) event.preventDefault();
+      clearNotice();
+      const number = Number.parseInt($('issue-number').value, 10);
+      if (!Number.isInteger(number) || number < 1) {
+        showNotice('Enter an issue number greater than zero.', 'warning');
+        return;
+      }
+      const button = $('run-button');
+      button.disabled = true;
+      button.textContent = 'Working…';
+      $('result-status').textContent = 'Running';
+      renderEmpty('result-body', 'Analysing issue #' + number, 'Reading the issue and checking available evidence.');
+      renderEmpty('steps-list', 'Collecting activity', 'The agent log will appear when the request completes.');
+      try {
+        const result = await api('/api/triage', { method: 'POST', body: JSON.stringify({ issue: number }) });
+        state.lastResult = result;
+        state.lastIssue = number;
+        renderResult(result);
+        renderSteps(result.log || []);
+        if (Array.isArray(result.pending_actions)) {
+          state.pending = result.pending_actions;
+          await refreshPending();
+        }
+        if (result.needs_human) showNotice('Human review needed: ' + (result.reason || 'The agent could not validate a result.'), 'warning');
+        else showNotice('Triage finished. Review the suggestions before proposing any changes.', 'success');
+      } catch (error) {
+        $('result-status').textContent = 'Could not run';
+        renderEmpty('result-body', 'Triage did not finish', error.message);
+        showNotice(error.message, 'error');
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Run triage';
+      }
+    }
+    function renderResult(result) {
+      const root = $('result-body');
+      $('result-status').textContent = result.needs_human || !result.verdict ? 'Needs review' : 'Ready to review';
+      if (result.needs_human || !result.verdict) {
+        root.innerHTML = '<div class="pills"><span class="pill review">Human review needed</span></div><h3 class="section-title">No validated result</h3><p class="summary">' + esc(result.reason || 'The agent did not return a result that passed validation.') + '</p>';
+        if (result.rejected_verdict) root.innerHTML += '<div class="log-observation">' + esc(result.rejected_verdict) + '</div>';
+        return;
+      }
+      const v = result.verdict;
+      const labels = Array.isArray(v.labels) ? v.labels : [];
+      const steps = Array.isArray(v.next_steps) ? v.next_steps : [];
+      const confidence = Math.max(0, Math.min(100, Math.round(Number(v.confidence || 0) * 100)));
+      let html = '<div class="result-top"><div><div class="result-kicker">ISSUE #' + Number(result.issue || state.lastIssue || 0) + '</div><h3>Suggested action plan</h3></div><span class="pill good">Reviewed by validator</span></div>';
+      html += '<div class="pills">';
+      html += labels.length ? labels.map(function (label) { return '<span class="pill">' + esc(label) + '</span>'; }).join('') : '<span class="pill neutral">No labels suggested</span>';
+      html += '<span class="pill neutral">Severity: ' + esc(v.severity || 'unknown') + '</span></div>';
+      html += '<p class="summary">' + esc(v.summary || 'No summary was provided.') + '</p>';
+      if (v.duplicate_of != null) html += '<p class="helper">Possible duplicate: issue #' + Number(v.duplicate_of) + '</p>';
+      html += '<hr class="divider"><h3 class="section-title">Recommended next steps</h3>';
+      html += steps.length ? '<ol class="steps">' + steps.map(function (step) { return '<li>' + esc(step) + '</li>'; }).join('') + '</ol>' : '<p class="helper">No next steps were provided.</p>';
+      html += '<div class="confidence"><div class="track"><div class="fill" style="width:' + confidence + '%"></div></div><span>' + confidence + '% confidence</span></div>';
+      if (labels.length) html += '<div class="actions"><button type="button" id="propose-labels" class="btn btn-main">Propose labels for approval</button></div>';
+      html += '<p class="helper">Confidence is the model’s estimate, not a calibrated probability. Nothing is written to GitHub until you approve it.</p>';
+      root.innerHTML = html;
+      const proposeButton = $('propose-labels');
+      if (proposeButton) proposeButton.addEventListener('click', proposeLabels);
+    }
+    function renderSteps(log) {
+      const list = Array.isArray(log) ? log : [];
+      $('steps-count').textContent = list.length + (list.length === 1 ? ' step' : ' steps');
+      if (!list.length) {
+        renderEmpty('steps-list', 'No activity recorded', 'The agent returned no tool observations for this run.');
+        return;
+      }
+      $('steps-list').innerHTML = list.map(function (item, index) {
+        const number = Number.isFinite(Number(item.step)) ? Number(item.step) : index + 1;
+        const observation = typeof item.observation === 'string' ? item.observation : JSON.stringify(item.observation || {});
+        return '<article class="log-item"><div class="log-meta"><span class="log-step">STEP ' + number + '</span><span class="log-tool">' + esc(item.tool || 'tool') + '</span></div>' +
+          '<div class="log-thought">' + esc(item.thought || 'No note recorded.') + '</div><div class="log-observation">' + esc(observation || 'No observation') + '</div></article>';
+      }).join('');
+    }
+    async function proposeLabels() {
+      if (!state.lastResult || !state.lastResult.verdict) return;
+      const labels = Array.isArray(state.lastResult.verdict.labels) ? state.lastResult.verdict.labels : [];
+      const button = $('propose-labels');
+      if (button) { button.disabled = true; button.textContent = 'Preparing proposals…'; }
+      let made = 0;
+      const errors = [];
+      for (const label of labels) {
+        try {
+          await api('/api/propose', { method: 'POST', body: JSON.stringify({ issue: Number(state.lastIssue), label: label }) });
+          made += 1;
+        } catch (error) { errors.push(error.message); }
+      }
+      await refreshPending();
+      if (made) showNotice(made + ' proposal(s) added to the approval queue. No GitHub changes have been made yet.', errors.length ? 'warning' : 'success');
+      else showNotice(errors.join(' ') || 'No proposals were created.', 'error');
+    }
+    async function decideProposal(button) {
+      const id = button.dataset.actionId;
+      const decision = button.dataset.decision;
+      const row = button.closest('[data-pending-row]');
+      if (!id || !row) return;
+      row.querySelectorAll('button').forEach(function (item) { item.disabled = true; });
+      button.textContent = decision === 'approve' ? 'Applying…' : 'Removing…';
+      try {
+        const result = await api('/api/approve', { method: 'POST', body: JSON.stringify({ action_id: id, decision: decision }) });
+        if (result.applied) showNotice('Approved. GitHub accepted the change.', 'success');
+        else if (result.denied) showNotice('Proposal denied and removed from the queue.', 'info');
+        else showNotice(result.error || 'The action was not completed.', 'error');
+        await refreshPending();
+      } catch (error) {
+        showNotice(error.message, 'error');
+        row.querySelectorAll('button').forEach(function (item) { item.disabled = false; });
+        button.textContent = decision === 'approve' ? 'Approve' : 'Deny';
+      }
+    }
+    $('triage-form').addEventListener('submit', runTriage);
+    $('issue-list').addEventListener('click', function (event) {
+      const button = event.target.closest('button[data-issue]');
+      if (!button) return;
+      $('issue-number').value = button.dataset.issue;
+      $('issue-number').focus();
+      showNotice('Issue #' + button.dataset.issue + ' selected. Run triage when ready.', 'info');
+    });
+    $('pending-list').addEventListener('click', function (event) {
+      const button = event.target.closest('button[data-decision]');
+      if (button) decideProposal(button);
+    });
+    $('refresh-button').addEventListener('click', async function () {
+      const button = $('refresh-button');
+      button.disabled = true;
+      await refreshHealth();
+      await Promise.all([refreshIssues(), refreshPending()]);
+      button.disabled = false;
+      showNotice('Workspace refreshed.', 'success');
+    });
+    (async function init() {
+      await refreshHealth();
+      await Promise.all([refreshIssues(), refreshPending()]);
+    })();
+  </script>
+</body>
+</html>
